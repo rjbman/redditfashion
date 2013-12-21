@@ -26,9 +26,15 @@ logging.basicConfig(level=logging.INFO)
 
 def get_url_type(url):
     """
-    Tries to guess wether an URL points to an image.
+    Tries to guess whether an URL points to an image.
     """
     link_type, link_encoding = mimetypes.guess_type(url)
+    
+    #Regex to check if url is imgur album
+    imgur_album_pattern = re.compile("http://imgur.com/*[^.]")
+    match = re.match(imgur_album_pattern, url)
+    if match:
+        return "imgur album"
 
     if link_type is None:
         return "link"
@@ -146,6 +152,7 @@ class WAYWTScraper(object):
             buckets = {
                 "link": [],
                 "image": [],
+                "imgur album": [],
             }
 
             for url in urls:
@@ -161,6 +168,9 @@ class WAYWTScraper(object):
                     continue
 
                 if key == "image":
+                    all_image_urls.extend(values)
+                
+                if key == "imgur album":
                     all_image_urls.extend(values)
 
                 name = key.capitalize()
