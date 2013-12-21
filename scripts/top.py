@@ -2,6 +2,7 @@
 This is a script to scrape reddit WAYWT and compile a Top of WAYWT.
 
 Requires praw 2.1.9 or above.
+Requires BeautifulSoup 4
 
 Usage:
 
@@ -19,8 +20,11 @@ import datetime
 import re
 import mimetypes
 import logging
+from urllib import urlopen
 
 import praw
+
+from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO)
 
@@ -88,27 +92,42 @@ class WAYWTScraper(object):
         """
         return re.findall(self.html_link_pattern, comment.body_html)
 
-    def scrape_waywt(self, score_type="upvotes", score_threshold=75, month=None, year=None):
+    def scrape_waywt(self, score_type="upvotes", score_threshold=75, month=None, year=None, fullyear=None):
 
         # default to current month and year
         year = year or datetime.date.today().year
         month = month or datetime.date.today().month
         month_name = calendar.month_name[month]
         month_abbr = self.month_abbr[month]
-
+        
+        # parse fullyear option
+        if fullyear == "y":
+            fullyear = True
+        else:
+            fullyear = False
+        
         reddit = praw.Reddit(user_agent=self.user_agent)
 
         # Query to search threads with WAYWT and the current month name in their title
         query = "title:WAYWT AND author:{0} AND (title:{1} OR title:{2})".format(self.author, month_name, month_abbr)
+        
+        # If doing the full year, don't include a specific month
+        if fullyear:
+            query = "title:WAYWT AND author:{0}".format(self.author)
+        
         posts = reddit.search(query, subreddit=self.subreddit, sort="new")
 
+        print(posts)
         comments = []
         for submission in posts:
-
-            # Ignore if not submitted this month/year
+            # Ignore if not submitted this year      
             submission_date = datetime.date.fromtimestamp(int(submission.created_utc))
-            if submission_date.month != month or submission_date.year != year:
+            if submission_date.year != year:
                 continue
+            # If not searching the full year, ignore if not submitted this month
+            if not fullyear:
+                if submission_date.month != month:
+                    continue
 
             # Ignore if title doesn't match regex
             match = re.match(self.waywt_title_pattern, submission.title)
@@ -170,8 +189,13 @@ class WAYWTScraper(object):
                 if key == "image":
                     all_image_urls.extend(values)
                 
-                if key == "imgur album":
-                    all_image_urls.extend(values)
+                if key == "imgur album":          
+                    for value in values:
+                        #Get image urls from imgur url
+                        images = self.getimageurls(value)
+
+                        #Add to all image urls
+                        all_image_urls.extend(images)
 
                 name = key.capitalize()
                 for index, url in enumerate(values, 1):
@@ -183,6 +207,14 @@ class WAYWTScraper(object):
         for img in all_image_urls:
             print img
 
+    #Takes an non-direct-image imgur link and pulls all urls from it
+    def getimageurls(self, url):
+        soup = BeautifulSoup(urlopen(url))
+        images = soup.find_all(class_ = "zoom")
+        urls = []
+        for image in images:
+            urls.append(image.get("href"))
+        return urls
 
 if __name__ == "__main__":
 
@@ -229,6 +261,14 @@ if __name__ == "__main__":
         help="Scoring method to use",
         default="upvotes"
     )
+    parser.add_option(
+        "-e",
+        "--fullyear",
+        dest="fullyear",
+        choices=["y","n"],
+        help="Run for full year?",
+        default="n"
+    )
     (options, args) = parser.parse_args()
 
     if options.female:
@@ -246,5 +286,6 @@ if __name__ == "__main__":
         score_type=options.score_type,
         score_threshold=options.score_threshold,
         month=int(options.month),
-        year=int(options.year)
+        year=int(options.year),
+        fullyear=options.fullyear
     )
