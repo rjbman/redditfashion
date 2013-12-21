@@ -116,8 +116,7 @@ class WAYWTScraper(object):
             query = "title:WAYWT AND author:{0}".format(self.author)
         
         posts = reddit.search(query, subreddit=self.subreddit, sort="new", limit=None)
-
-        print(posts)
+ 
         comments = []
         for submission in posts:
             # Ignore if not submitted this year      
