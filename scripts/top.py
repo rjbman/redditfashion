@@ -115,7 +115,7 @@ class WAYWTScraper(object):
         if fullyear:
             query = "title:WAYWT AND author:{0}".format(self.author)
         
-        posts = reddit.search(query, subreddit=self.subreddit, sort="new")
+        posts = reddit.search(query, subreddit=self.subreddit, sort="new", limit=None)
 
         print(posts)
         comments = []
